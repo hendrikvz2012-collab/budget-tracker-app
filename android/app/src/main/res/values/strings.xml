@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BudgetTracker</string>
+    <string name="title_activity_main">BudgetTracker</string>
+    <string name="package_name">com.yourcompany.budgettracker</string>
+    <string name="custom_url_scheme">com.yourcompany.budgettracker</string>
+</resources>

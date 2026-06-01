@@ -1,0 +1,27 @@
+{
+  "package_name": "com.yourcompany.budgettracker",
+  "version": "2.0.0",
+  "title": "Budget Tracker",
+  "short_description": "Track spending, set budgets, withdraw to PayPal.",
+  "full_description": "Take control of your finances with Budget Tracker. Easily track income and expenses, set monthly budgets per category, view spending trends with interactive charts, and withdraw your balance directly to your PayPal account.\n\nFeatures:\n• Dashboard with real-time balance, income, and expense summaries\n• Add, edit, and delete transactions with category icons\n• Monthly budget limits with visual progress bars\n• Interactive doughnut and bar charts\n• PayPal payout withdrawals\n• Dark mode support\n• CSV and JSON data export\n• Multi-currency support (ZAR, USD, EUR, GBP)\n• Secure login with JWT authentication\n• 7-day free trial available",
+  "category": "FINANCE",
+  "language": "en-US",
+  "developer_name": "Your Company",
+  "developer_email": "support@your-backend.com",
+  "developer_website": "https://your-backend.com",
+  "privacy_policy_url": "https://your-backend.com/privacy",
+  "promo_video": "",
+  "price": "free",
+  "in_app_products": true,
+  "in_app_subscriptions": true,
+  "content_rating": {
+    "category": "Finance",
+    "rating": "Everyone"
+  },
+  "screenshots": {
+    "phone": ["phone-1.png", "phone-2.png", "phone-3.png"],
+    "tablet": ["tablet-1.png", "tablet-2.png"]
+  },
+  "feature_graphic": "feature-graphic.png",
+  "icon": "../assets/icon.svg"
+}

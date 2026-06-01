@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "apple_id": "",           // Fill after creating app in App Store Connect
+  "bundle_id": "com.yourcompany.budgettracker",
+  "sku": "BT_2_0_0",
+  "primary_language": "en-US",
+  "vendor_website": "https://your-backend.com",
+  "company_name": "Your Company",
+  "app_name": "Budget Tracker",
+  "subtitle": "Track spending. Save more.",
+  "categories": ["FINANCE"],
+  "description": "Take control of your finances with Budget Tracker. Easily track income and expenses, set monthly budgets per category, view spending trends with interactive charts, and withdraw your balance directly to your PayPal account.\n\nFeatures:\n• Dashboard with real-time balance, income, and expense summaries\n• Add, edit, and delete transactions with category icons\n• Monthly budget limits with visual progress bars\n• Interactive doughnut and bar charts\n• PayPal payout withdrawals\n• Dark mode support\n• CSV and JSON data export\n• Multi-currency support (ZAR, USD, EUR, GBP)",
+  "keywords": "budget,finance,tracker,expense,income,savings,paypal,money",
+  "release_notes": "Initial release. Track budgets, manage transactions, and withdraw to PayPal.",
+  "promotional_text": "The simplest way to track your money and get paid out via PayPal.",
+  "support_url": "https://your-backend.com/support",
+  "marketing_url": "https://your-backend.com",
+  "privacy_url": "https://your-backend.com/privacy",
+  "app_store_icon": "../assets/icon.svg",
+
+  "screenshot_sizes": {
+    "iPhone_6_5": ["6.5-iphone.png", "6.5-iphone-2.png"],
+    "iPhone_5_5": ["5.5-iphone.png", "5.5-iphone-2.png"],
+    "iPad_12_9": ["12.9-ipad.png", "12.9-ipad-2.png"]
+  },
+
+  "pricing": {
+    "price_tier": 1,
+    "available": true
+  }
+}
