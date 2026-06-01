@@ -1035,6 +1035,7 @@ function renderPaypalButtons() {
   };
   paypal.Buttons({ ...opts, fundingSource: paypal.FUNDING.PAYPAL }).render('#paypal-button-container');
   try { paypal.Buttons({ ...opts, fundingSource: paypal.FUNDING.CARD }).render('#card-button-container'); } catch (e) {}
+}
 
 // ── Render: Subscription (in-app page) ─────────────────────────────────
 async function renderSubscription(el) {
