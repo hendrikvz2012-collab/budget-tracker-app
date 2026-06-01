@@ -201,7 +201,7 @@ function renderAuth() {
           </div>
           <div class="hero-stats">
             <div><strong>Free 7 days</strong><span>No credit card</span></div>
-            <div><strong>Then $5/mo</strong><span>Cancel anytime</span></div>
+            <div><strong>Then $2.50/mo</strong><span>Cancel anytime</span></div>
             <div><strong>PayPal</strong><span>Secure payouts</span></div>
           </div>
         </div>
@@ -268,7 +268,7 @@ function renderAuth() {
             <div class="pricing-card pricing-featured">
               <div class="pricing-badge">POPULAR</div>
               <div class="pricing-name">Monthly</div>
-              <div class="pricing-price"><span class="currency">$</span>5</div>
+              <div class="pricing-price"><span class="currency">$</span>2.50</div>
               <div class="pricing-period">per month</div>
               <ul class="pricing-features">
                 <li>✓ Everything in Free</li>
