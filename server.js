@@ -434,6 +434,108 @@ app.get('/api/export', auth, (req, res) => {
   res.json({ user: { name: user.name, email: user.email }, categories: cats, transactions: txs });
 });
 
+// ── AI Support Chat ────────────────────────────────────────────────────
+
+app.get('/api/ai/config', auth, (req, res) => {
+  res.json({
+    enabled: !!(process.env.AI_API_KEY),
+    provider: process.env.AI_PROVIDER || 'openai',
+  });
+});
+
+app.post('/api/ai/ask', auth, async (req, res) => {
+  const { question, history } = req.body;
+  if (!question) return res.status(400).json({ error: 'Question is required' });
+
+  const apiKey = process.env.AI_API_KEY;
+  const provider = process.env.AI_PROVIDER || 'openai';
+
+  // Fallback FAQ matching when no AI API key is configured
+  if (!apiKey) {
+    const q = question.toLowerCase();
+    let answer = '';
+    if (q.includes('transaction') || q.includes('add') && (q.includes('expense') || q.includes('income')))
+      answer = 'To add a transaction, go to the Transactions page and click "Add Transaction". Select income or expense, pick a category, enter the amount and description, then save.';
+    else if (q.includes('budget') || q.includes('limit'))
+      answer = 'Go to the Budgets page and click "Set budgets". You can set a monthly spending limit for each expense category. Progress bars show how much you have left.';
+    else if (q.includes('withdraw') || q.includes('payout') || q.includes('paypal'))
+      answer = 'Go to Settings and scroll to the PayPal section. Enter your PayPal email, then click "Withdraw to PayPal" to send your available balance. Payouts are processed via PayPal.';
+    else if (q.includes('subscription') || q.includes('price') || q.includes('pay') || q.includes('trial'))
+      answer = 'New users get a 7-day free trial. After the trial ends, you need an active subscription to continue using the app. The subscription costs $2.50/month. You can pay with PayPal or a credit/debit card.';
+    else if (q.includes('category') || q.includes('categor'))
+      answer = 'Categories help organize your transactions. Go to Settings → Categories to add, edit, or delete categories. Each category can have an icon and color.';
+    else if (q.includes('dashboard') || q.includes('chart') || q.includes('graph'))
+      answer = 'The Dashboard shows your balance, income vs expenses, a doughnut chart of spending by category, and a monthly bar chart. It gives you a complete overview of your finances.';
+    else if (q.includes('export') || q.includes('download') || q.includes('csv') || q.includes('json'))
+      answer = 'To export your data, go to Settings and click "Export CSV" or "Export JSON". Downloads all your transactions and categories.';
+    else if (q.includes('dark') || q.includes('theme') || q.includes('light') || q.includes('mode'))
+      answer = 'Click the sun/moon icon in the sidebar to toggle between dark and light mode. Your preference is saved to your profile.';
+    else if (q.includes('currency') || q.includes('zar') || q.includes('rand') || q.includes('dollar'))
+      answer = 'You can change your currency in Settings → Profile. Supported currencies: ZAR (R), USD ($), EUR (€), GBP (£). The display updates across the app.';
+    else if (q.includes('password') || q.includes('forgot') || q.includes('reset') || q.includes('login') || q.includes('sign'))
+      answer = 'Your account uses email and password for login. Check the "Remember me" box to stay logged in. Password reset is not yet available — contact support for help.';
+    else if (q.includes('hello') || q.includes('hi') || q.includes('hey') || q.includes('help'))
+      answer = 'Hi! I\'m the Budget Tracker assistant. Ask me about transactions, budgets, payouts, subscriptions, categories, or any app feature. I\'m here to help!';
+    else
+      answer = 'I\'m not sure about that. Try asking about: transactions, budgets, payouts, subscriptions, categories, the dashboard, exporting data, themes, or currency settings. Or contact support@your-backend.com for more help.';
+
+    return res.json({ answer });
+  }
+
+  // AI-powered answer
+  try {
+    const url = process.env.AI_API_URL || 'https://api.openai.com/v1/chat/completions';
+    const model = process.env.AI_MODEL || 'gpt-4o-mini';
+
+    const messages = [
+      {
+        role: 'system',
+        content: `You are a support assistant for Budget Tracker — a personal finance app. Answer briefly and helpfully.
+Key facts:
+- 7-day free trial, then $2.50/month subscription
+- PayPal and credit/debit card payments accepted
+- Features: dashboard, transactions, budgets, categories, charts, dark mode, CSV/JSON export, PayPal payouts
+- Support available at support@your-backend.com
+- Owner: app creator with free access
+- Payouts send balance to your PayPal email
+- Multi-currency: ZAR, USD, EUR, GBP
+Keep answers under 3 sentences. Be friendly and helpful.`
+      }
+    ];
+
+    // Add conversation history (last 4 messages)
+    if (history && Array.isArray(history)) {
+      for (const msg of history.slice(-4)) {
+        messages.push({ role: msg.role, content: msg.content });
+      }
+    }
+
+    messages.push({ role: 'user', content: question });
+
+    const aiRes = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model, messages, max_tokens: 300 })
+    });
+
+    if (!aiRes.ok) {
+      const errData = await aiRes.text();
+      console.error('AI API error:', aiRes.status, errData);
+      return res.json({ answer: 'Sorry, the AI service is unavailable right now. Please try again later.' });
+    }
+
+    const data = await aiRes.json();
+    const answer = data.choices?.[0]?.message?.content || 'No response generated.';
+    return res.json({ answer });
+  } catch (err) {
+    console.error('AI error:', err.message);
+    return res.json({ answer: 'Sorry, something went wrong. Please try again.' });
+  }
+});
+
 // ── Serve SPA ──────────────────────────────────────────────────────────
 
 app.get('*', (req, res) => {

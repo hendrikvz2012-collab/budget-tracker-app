@@ -1189,9 +1189,84 @@ function debounce(fn, ms) {
   };
 }
 
+// ── AI Chat Widget ──────────────────────────────────────────────────────
+let chatOpen = false;
+let chatHistory = [];
+let aiEnabled = false;
+
+async function initChat() {
+  try {
+    const cfg = await API.get('/api/ai/config');
+    aiEnabled = cfg.enabled;
+  } catch {}
+}
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chat-panel').classList.toggle('open', chatOpen);
+  document.getElementById('chat-bubble').classList.toggle('open', chatOpen);
+  if (chatOpen) document.getElementById('chat-input').focus();
+}
+
+function addChatMsg(text, role) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg ' + role;
+  el.textContent = text;
+  document.getElementById('chat-messages').appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const question = input.value.trim();
+  if (!question) return;
+  input.value = '';
+
+  addChatMsg(question, 'user');
+  const loading = document.createElement('div');
+  loading.className = 'chat-msg loading';
+  loading.textContent = 'Thinking...';
+  document.getElementById('chat-messages').appendChild(loading);
+
+  try {
+    const res = await API.post('/api/ai/ask', { question, history: chatHistory.slice(-6) });
+    loading.remove();
+    addChatMsg(res.answer, 'bot');
+    chatHistory.push({ role: 'user', content: question }, { role: 'assistant', content: res.answer });
+  } catch (err) {
+    loading.remove();
+    addChatMsg('Sorry, something went wrong. Please try again.', 'error');
+  }
+}
+
+function renderChatWidget() {
+  const html = `
+    <button class="chat-bubble" id="chat-bubble" onclick="toggleChat()">💬</button>
+    <div class="chat-panel" id="chat-panel">
+      <div class="chat-header">
+        <span>🤖 Support</span>
+        <button class="chat-close" onclick="toggleChat()">×</button>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-msg bot">Hi! Ask me anything about Budget Tracker — transactions, budgets, payouts, or how to get started.</div>
+      </div>
+      <div class="chat-input-wrap">
+        <input id="chat-input" placeholder="Type your question..." onkeydown="if(event.key==='Enter')sendChat()" />
+        <button class="chat-send" onclick="sendChat()">Ask</button>
+      </div>
+    </div>
+  `;
+  const wrap = document.createElement('div');
+  wrap.id = 'chat-widget';
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap);
+}
+
 // ── Init ────────────────────────────────────────────────────────────────
 if (state.token) {
   initApp();
 } else {
   renderAuth();
 }
+initChat();
+renderChatWidget();
