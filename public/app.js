@@ -1278,13 +1278,17 @@ async function sendChat() {
   document.getElementById('chat-messages').appendChild(loading);
 
   try {
-    const res = await API.post('/api/ai/ask', { question, history: chatHistory.slice(-6) });
+    const res = await API.post('/api/ai/ask', {
+      question,
+      history: chatHistory.slice(-6),
+      context: { name: state.user?.name, plan: state.user?.plan }
+    });
     loading.remove();
     addChatMsg(res.answer, 'bot');
     chatHistory.push({ role: 'user', content: question }, { role: 'assistant', content: res.answer });
   } catch (err) {
     loading.remove();
-    addChatMsg('Sorry, something went wrong. Please try again.', 'error');
+    addChatMsg('Something went wrong. Try asking again in a moment!', 'error');
   }
 }
 

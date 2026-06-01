@@ -440,72 +440,117 @@ app.get('/api/ai/config', auth, (req, res) => {
   res.json({
     enabled: !!(process.env.AI_API_KEY),
     provider: process.env.AI_PROVIDER || 'openai',
+    supportEmail: process.env.SUPPORT_EMAIL || 'support@budgettracker.app',
   });
 });
 
 app.post('/api/ai/ask', auth, async (req, res) => {
-  const { question, history } = req.body;
+  const { question, history, context } = req.body;
   if (!question) return res.status(400).json({ error: 'Question is required' });
 
   const apiKey = process.env.AI_API_KEY;
-  const provider = process.env.AI_PROVIDER || 'openai';
+  const supportEmail = process.env.SUPPORT_EMAIL || 'support@budgettracker.app';
 
-  // Fallback FAQ matching when no AI API key is configured
+  // Gather user context from DB for personalized answers
+  const user = db.prepare('SELECT id,name,email,created_at,currency FROM users WHERE id=?').get(req.userId);
+  const sub = db.prepare('SELECT expires_at,amount,currency FROM subscriptions WHERE user_id=? AND status=\'active\'').get(req.userId);
+  const txCount = db.prepare('SELECT COUNT(*) as c FROM transactions WHERE user_id=?').get(req.userId);
+  const balance = db.prepare(`SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END),0) - COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),0) as bal FROM transactions WHERE user_id=?`).get(req.userId);
+
+  const userContext = {
+    name: user?.name || 'User',
+    joined: user?.created_at?.slice(0,10) || 'recently',
+    currency: user?.currency || 'ZAR',
+    plan: sub ? `active subscription (expires ${sub.expires_at?.slice(0,10) || 'N/A'})` : 'free trial or expired',
+    transactions: txCount?.c || 0,
+    balance: balance?.bal || 0,
+  };
+
+  // Build a comprehensive system prompt so AI handles everything autonomously
+  const systemPrompt = `You are the sole support agent for Budget Tracker — a personal finance web app. Your job is to handle ALL customer questions so the app owner never has to talk to customers. Be friendly, thorough, and helpful.
+
+CURRENT USER CONTEXT:
+- Name: ${userContext.name}
+- Joined: ${userContext.joined}
+- Plan: ${userContext.plan}
+- Currency: ${userContext.currency}
+- Transactions logged: ${userContext.transactions}
+- Current balance: ${userContext.currency} ${Number(userContext.balance).toFixed(2)}
+
+APP FEATURES & HOW TO USE THEM:
+1. Dashboard: Shows balance, income vs expenses, doughnut chart (spending by category), bar chart (monthly trend). Auto-loads on login.
+2. Transactions: Click "Add Transaction" to log income/expense. Pick a category, enter amount & description. You can search by keyword, filter by type/date, and sort columns. Delete from the row menu.
+3. Budgets: Go to Budgets page → "Set budgets". Pick a category and monthly limit. Progress bars show how much is left. Alerts when near limit.
+4. Categories: Settings → Categories. Add/edit/delete with custom icons and colors. Each transaction belongs to a category.
+5. PayPal Payouts: Settings → scroll to PayPal section. Enter your PayPal email → "Withdraw to PayPal". Money sends from your app balance to your PayPal account.
+6. Subscription: New = 7-day free trial. Then $2.50/month via PayPal or credit/debit card. After payment, 30 days access. Cancel anytime — access lasts until end of paid period.
+7. Export: Settings → "Export CSV" or "Export JSON". Downloads all your data.
+8. Dark mode: Click sun/moon icon in sidebar. Preference saved to profile.
+9. Currency: Settings → Profile → change currency. Supported: ZAR (R), USD ($), EUR (€), GBP (£).
+10. Remember me: Check box on login = stays logged in (localStorage). Uncheck = session only.
+
+TROUBLESHOOTING COMMON ISSUES:
+- "Payment not working": Make sure you have a PayPal balance or linked card. Try refreshing the page. If PayPal buttons don't load, check ad blocker.
+- "Can't log in": Use "Remember me" or re-enter credentials. No password reset yet — if stuck, contact ${supportEmail}.
+- "Balance seems wrong": Refresh the page. Check you selected correct type (income vs expense) for each transaction.
+- "Payout not showing": Payouts are manual — click withdraw, then it processes. Check your PayPal email is correct in Settings.
+- "App not loading": Clear browser cache, try incognito mode, or disable browser extensions.
+
+RULES:
+- NEVER say "contact support" or "ask the owner" — YOU are support. Answer everything yourself.
+- If you genuinely cannot answer, say "I've noted your question and will have our team follow up via email." Then log what they asked.
+- Use the user's name occasionally. Be warm but professional.
+- Keep answers concise (2-4 sentences) but thorough enough to solve their problem.
+- If they ask about pricing, features, or comparing plans, explain clearly.
+- If they're frustrated, apologize and solve the problem. Don't be defensive.`;
+
+  // Fallback FAQ when no AI API key
   if (!apiKey) {
     const q = question.toLowerCase();
     let answer = '';
     if (q.includes('transaction') || q.includes('add') && (q.includes('expense') || q.includes('income')))
-      answer = 'To add a transaction, go to the Transactions page and click "Add Transaction". Select income or expense, pick a category, enter the amount and description, then save.';
+      answer = `To add a transaction, go to the Transactions page and click "Add Transaction". Select income or expense, pick a category, enter the amount and description, then save. You've logged ${userContext.transactions} transactions so far.`;
     else if (q.includes('budget') || q.includes('limit'))
-      answer = 'Go to the Budgets page and click "Set budgets". You can set a monthly spending limit for each expense category. Progress bars show how much you have left.';
+      answer = 'Go to the Budgets page and click "Set budgets". You can set a monthly spending limit for each expense category. Progress bars show how much you have left. Ask if you want me to walk you through setting one up!';
     else if (q.includes('withdraw') || q.includes('payout') || q.includes('paypal'))
-      answer = 'Go to Settings and scroll to the PayPal section. Enter your PayPal email, then click "Withdraw to PayPal" to send your available balance. Payouts are processed via PayPal.';
+      answer = `Go to Settings and scroll to the PayPal section. Enter your PayPal email, then click "Withdraw to PayPal" to send your available balance of ${userContext.currency} ${Number(userContext.balance).toFixed(2)}. Payouts are processed via PayPal.`;
     else if (q.includes('subscription') || q.includes('price') || q.includes('pay') || q.includes('trial'))
-      answer = 'New users get a 7-day free trial. After the trial ends, you need an active subscription to continue using the app. The subscription costs $2.50/month. You can pay with PayPal or a credit/debit card.';
+      answer = `${userContext.name}, you're currently on the ${userContext.plan}. New users get a 7-day free trial. After that it's $2.50/month. You can pay with PayPal or credit/debit card. Cancel anytime!`;
     else if (q.includes('category') || q.includes('categor'))
-      answer = 'Categories help organize your transactions. Go to Settings → Categories to add, edit, or delete categories. Each category can have an icon and color.';
+      answer = 'Categories help organize your transactions. Go to Settings → Categories to add, edit, or delete categories. You can pick custom icons and colors for each one.';
     else if (q.includes('dashboard') || q.includes('chart') || q.includes('graph'))
-      answer = 'The Dashboard shows your balance, income vs expenses, a doughnut chart of spending by category, and a monthly bar chart. It gives you a complete overview of your finances.';
+      answer = `Your Dashboard shows your balance (${userContext.currency} ${Number(userContext.balance).toFixed(2)}), income vs expenses, a doughnut chart of spending by category, and a monthly bar chart. It updates automatically.`;
     else if (q.includes('export') || q.includes('download') || q.includes('csv') || q.includes('json'))
-      answer = 'To export your data, go to Settings and click "Export CSV" or "Export JSON". Downloads all your transactions and categories.';
+      answer = 'To export your data, go to Settings and click "Export CSV" or "Export JSON". It downloads all your transactions and categories in one file.';
     else if (q.includes('dark') || q.includes('theme') || q.includes('light') || q.includes('mode'))
-      answer = 'Click the sun/moon icon in the sidebar to toggle between dark and light mode. Your preference is saved to your profile.';
+      answer = 'Click the sun/moon icon in the sidebar to toggle between dark and light mode. Your preference is saved automatically.';
     else if (q.includes('currency') || q.includes('zar') || q.includes('rand') || q.includes('dollar'))
-      answer = 'You can change your currency in Settings → Profile. Supported currencies: ZAR (R), USD ($), EUR (€), GBP (£). The display updates across the app.';
-    else if (q.includes('password') || q.includes('forgot') || q.includes('reset') || q.includes('login') || q.includes('sign'))
-      answer = 'Your account uses email and password for login. Check the "Remember me" box to stay logged in. Password reset is not yet available — contact support for help.';
-    else if (q.includes('hello') || q.includes('hi') || q.includes('hey') || q.includes('help'))
-      answer = 'Hi! I\'m the Budget Tracker assistant. Ask me about transactions, budgets, payouts, subscriptions, categories, or any app feature. I\'m here to help!';
+      answer = 'You can change your currency in Settings → Profile. Currently set to ' + userContext.currency + '. Supported: ZAR (R), USD ($), EUR (€), GBP (£).';
+    else if (q.includes('password') || q.includes('forgot') || q.includes('reset') || q.includes('login'))
+      answer = `For login issues, try the "Remember me" option. There's no password reset yet — email ${supportEmail} and we'll sort it out for you.`;
+    else if (q.includes('delete') || q.includes('remove') || q.includes('close account'))
+      answer = 'To delete data, go to each transaction and remove it. Account deletion is manual right now. Email us and we\'ll handle it.';
+    else if (q.includes('hello') || q.includes('hi') || q.includes('hey') || q.includes('help') || q.includes('good'))
+      answer = `Hey ${userContext.name}! 👋 I'm your Budget Tracker assistant. I can help with transactions, budgets, payouts, subscriptions, or anything about the app. What can I do for you?`;
+    else if (q.includes('bug') || q.includes('error') || q.includes('broken') || q.includes('not working') || q.includes('issue'))
+      answer = 'Sorry about that! Try refreshing the page first. If it persists, try clearing your browser cache or using incognito mode. If the problem continues, I\'ll flag it for the team.';
+    else if (q.includes('feature') || q.includes('request') || q.includes('suggestion'))
+      answer = 'Thanks for the idea! I\'ll pass it along to the team. Keep an eye on the app for updates — we\'re always improving based on user feedback!';
     else
-      answer = 'I\'m not sure about that. Try asking about: transactions, budgets, payouts, subscriptions, categories, the dashboard, exporting data, themes, or currency settings. Or contact support@your-backend.com for more help.';
+      answer = `I'm not sure about that one, ${userContext.name}. I can help with: transactions, budgets, payouts, subscriptions, categories, the dashboard, exporting data, themes, currency, or troubleshooting. What would you like to know?`;
 
     return res.json({ answer });
   }
 
-  // AI-powered answer
+  // AI-powered answer with full context
   try {
     const url = process.env.AI_API_URL || 'https://api.openai.com/v1/chat/completions';
     const model = process.env.AI_MODEL || 'gpt-4o-mini';
 
-    const messages = [
-      {
-        role: 'system',
-        content: `You are a support assistant for Budget Tracker — a personal finance app. Answer briefly and helpfully.
-Key facts:
-- 7-day free trial, then $2.50/month subscription
-- PayPal and credit/debit card payments accepted
-- Features: dashboard, transactions, budgets, categories, charts, dark mode, CSV/JSON export, PayPal payouts
-- Support available at support@your-backend.com
-- Owner: app creator with free access
-- Payouts send balance to your PayPal email
-- Multi-currency: ZAR, USD, EUR, GBP
-Keep answers under 3 sentences. Be friendly and helpful.`
-      }
-    ];
+    const messages = [{ role: 'system', content: systemPrompt }];
 
-    // Add conversation history (last 4 messages)
     if (history && Array.isArray(history)) {
-      for (const msg of history.slice(-4)) {
+      for (const msg of history.slice(-6)) {
         messages.push({ role: msg.role, content: msg.content });
       }
     }
@@ -514,17 +559,14 @@ Keep answers under 3 sentences. Be friendly and helpful.`
 
     const aiRes = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ model, messages, max_tokens: 300 })
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, messages, max_tokens: 500, temperature: 0.7 })
     });
 
     if (!aiRes.ok) {
       const errData = await aiRes.text();
       console.error('AI API error:', aiRes.status, errData);
-      return res.json({ answer: 'Sorry, the AI service is unavailable right now. Please try again later.' });
+      return res.json({ answer: 'I\'m having a temporary hiccup connecting to my brain. Give me a moment and try again!' });
     }
 
     const data = await aiRes.json();
@@ -532,7 +574,7 @@ Keep answers under 3 sentences. Be friendly and helpful.`
     return res.json({ answer });
   } catch (err) {
     console.error('AI error:', err.message);
-    return res.json({ answer: 'Sorry, something went wrong. Please try again.' });
+    return res.json({ answer: 'Something went wrong on my end. Please try your question again in a moment!' });
   }
 });
 
