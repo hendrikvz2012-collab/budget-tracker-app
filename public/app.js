@@ -176,68 +176,80 @@ function renderPage() {
 function renderAuth() {
   document.getElementById('app').innerHTML = `
     <div class="landing">
-      <header class="landing-header">
+      <header class="landing-header" id="landing-header">
         <div class="landing-header-inner">
-          <div class="landing-logo">💰 Budget Tracker</div>
+          <div class="landing-logo">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="8" fill="url(#lg)"/><path d="M14 6v16M6 14h16" stroke="#fff" stroke-width="3" stroke-linecap="round"/><defs><linearGradient id="lg" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#059669"/><stop offset="1" stop-color="#10B981"/></linearGradient></defs></svg>
+            Budget Tracker
+          </div>
           <nav class="landing-nav">
             <a href="#features" onclick="scrollToSection('features')">Features</a>
             <a href="#pricing" onclick="scrollToSection('pricing')">Pricing</a>
             <a href="#" onclick="openAuthModal('login');return false">Log in</a>
             <a href="#" class="btn btn-primary btn-sm" onclick="openAuthModal('signup');return false">Start free trial</a>
           </nav>
-          <button class="mobile-menu-btn" onclick="document.querySelector('.landing-nav').classList.toggle('open')">☰</button>
+          <button class="mobile-menu-btn" onclick="document.querySelector('.landing-nav').classList.toggle('open')" aria-label="Menu">☰</button>
         </div>
       </header>
 
       <section class="hero">
-        <div class="hero-bg"></div>
-        <div class="hero-content">
-          <div class="hero-badge">🔥 New — Free 7-day trial</div>
-          <h1>Take control of your<br><span class="gradient-text">money</span></h1>
-          <p class="hero-sub">Track every rand, set budgets, and grow your savings. The simplest way to manage your personal finances.</p>
-          <div class="hero-cta">
-            <button class="btn btn-primary btn-lg" onclick="openAuthModal('signup')">Start free trial →</button>
-            <button class="btn btn-secondary btn-lg" onclick="scrollToSection('features')">See features</button>
+        <div class="hero-bg">
+          <div class="hero-shape hero-shape-1"></div>
+          <div class="hero-shape hero-shape-2"></div>
+          <div class="hero-shape hero-shape-3"></div>
+        </div>
+        <div class="hero-content reveal">
+          <div class="hero-badge reveal" data-delay="0">✨ Free 7-day trial — no credit card</div>
+          <h1 class="reveal" data-delay="100">Take control of your<br><span class="gradient-text">finances</span></h1>
+          <p class="hero-sub reveal" data-delay="200">Track every rand, set smart budgets, and grow your savings. The simplest way to master your money.</p>
+          <div class="hero-cta reveal" data-delay="300">
+            <button class="btn btn-primary btn-lg btn-glow" onclick="openAuthModal('signup')">Get started free →</button>
+            <button class="btn btn-secondary btn-lg" onclick="scrollToSection('features')">Explore features</button>
           </div>
-          <div class="hero-stats">
-            <div><strong>Free 7 days</strong><span>No credit card</span></div>
-            <div><strong>Then $2.50/mo</strong><span>Cancel anytime</span></div>
-            <div><strong>PayPal</strong><span>Secure payouts</span></div>
+          <div class="hero-stats reveal" data-delay="400">
+            <div class="stat-item"><strong class="counter" data-target="7">0</strong><span>Days free trial</span></div>
+            <div class="stat-item"><strong>$2.50</strong><span>Per month after</span></div>
+            <div class="stat-item"><strong class="counter" data-target="100">0</strong><span>% secure</span></div>
           </div>
+        </div>
+        <div class="hero-scroll" onclick="scrollToSection('features')">
+          <div class="scroll-mouse"><div class="scroll-dot"></div></div>
         </div>
       </section>
 
+      <div class="divider-wave"><svg viewBox="0 0 1440 60" preserveAspectRatio="none"><path d="M0,30 C360,60 1080,0 1440,30 L1440,60 L0,60 Z" fill="var(--surface2)"/></svg></div>
+
       <section class="section" id="features">
         <div class="section-inner">
-          <div class="section-label">Features</div>
-          <h2 class="section-title">Everything you need to<br>master your money</h2>
+          <div class="section-label reveal">Features</div>
+          <h2 class="section-title reveal" data-delay="100">Everything you need to<br class="hide-mobile"> master your money</h2>
           <div class="features-grid">
-            <div class="feature-card">
+            <div class="feature-card reveal" data-delay="0">
               <div class="feature-icon" style="background:var(--green-light);color:var(--green)">📊</div>
               <h3>Dashboard</h3>
               <p>See your income, expenses, and balance at a glance. Beautiful charts show where your money goes.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card reveal" data-delay="100">
               <div class="feature-icon" style="background:var(--blue-light);color:var(--blue)">💳</div>
               <h3>Transactions</h3>
               <p>Log every transaction with categories. Search, filter, and export your data anytime.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card reveal" data-delay="200">
               <div class="feature-icon" style="background:var(--amber-light);color:var(--amber)">🎯</div>
               <h3>Budgets</h3>
               <p>Set monthly spending limits per category. Get visual alerts when you're close to your limit.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card reveal" data-delay="0">
               <div class="feature-icon" style="background:var(--purple-light);color:var(--purple)">💸</div>
               <h3>PayPal Payouts</h3>
               <p>Withdraw your savings directly to your PayPal account. Your money, your control.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card reveal" data-delay="100">
               <div class="feature-icon" style="background:var(--pink);color:#fff">📱</div>
               <h3>Works everywhere</h3>
               <p>Responsive design works on desktop, tablet, and phone. Access your budget anywhere.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card reveal" data-delay="200">
               <div class="feature-icon" style="background:var(--green-light);color:var(--green)">🔒</div>
               <h3>Private & secure</h3>
               <p>Your data is encrypted and stored securely. Password-protected with JWT authentication.</p>
@@ -246,49 +258,51 @@ function renderAuth() {
         </div>
       </section>
 
+      <div class="divider-wave flipped"><svg viewBox="0 0 1440 60" preserveAspectRatio="none"><path d="M0,30 C360,60 1080,0 1440,30 L1440,60 L0,60 Z" fill="var(--bg)"/></svg></div>
+
       <section class="section section-dark" id="pricing">
         <div class="section-inner">
-          <div class="section-label">Pricing</div>
-          <h2 class="section-title">Simple, transparent pricing</h2>
-          <p class="section-sub">One plan. All features. No hidden fees.</p>
+          <div class="section-label reveal">Pricing</div>
+          <h2 class="section-title reveal" data-delay="100">Simple, transparent pricing</h2>
+          <p class="section-sub reveal" data-delay="150">Start free, then only $2.50/month. No hidden fees.</p>
           <div class="pricing-grid">
-            <div class="pricing-card">
+            <div class="pricing-card reveal" data-delay="0">
               <div class="pricing-name">Free Trial</div>
               <div class="pricing-price"><span class="currency">$</span>0</div>
               <div class="pricing-period">for 7 days</div>
               <ul class="pricing-features">
-                <li>✓ All features included</li>
-                <li>✓ Full dashboard access</li>
-                <li>✓ Unlimited transactions</li>
-                <li>✓ Budget tracking</li>
-                <li>✓ No credit card needed</li>
+                <li><span class="check">✓</span> All features included</li>
+                <li><span class="check">✓</span> Full dashboard access</li>
+                <li><span class="check">✓</span> Unlimited transactions</li>
+                <li><span class="check">✓</span> Budget tracking</li>
+                <li><span class="check">✓</span> No credit card needed</li>
               </ul>
               <button class="btn btn-secondary btn-block" onclick="openAuthModal('signup')">Get started</button>
             </div>
-            <div class="pricing-card pricing-featured">
+            <div class="pricing-card pricing-featured reveal" data-delay="100">
               <div class="pricing-badge">POPULAR</div>
               <div class="pricing-name">Monthly</div>
               <div class="pricing-price"><span class="currency">$</span>2.50</div>
               <div class="pricing-period">per month</div>
               <ul class="pricing-features">
-                <li>✓ Everything in Free</li>
-                <li>✓ PayPal payouts</li>
-                <li>✓ Data export (CSV/JSON)</li>
-                <li>✓ Priority support</li>
-                <li>✓ Cancel anytime</li>
+                <li><span class="check">✓</span> Everything in Free</li>
+                <li><span class="check">✓</span> PayPal payouts</li>
+                <li><span class="check">✓</span> Data export (CSV/JSON)</li>
+                <li><span class="check">✓</span> Priority support</li>
+                <li><span class="check">✓</span> Cancel anytime</li>
               </ul>
-              <button class="btn btn-primary btn-block" onclick="openAuthModal('signup')">Subscribe now</button>
+              <button class="btn btn-primary btn-block btn-glow" onclick="openAuthModal('signup')">Subscribe now</button>
             </div>
-            <div class="pricing-card">
+            <div class="pricing-card reveal" data-delay="200">
               <div class="pricing-name">Lifetime</div>
               <div class="pricing-price"><span class="currency">$</span>49</div>
               <div class="pricing-period">one-time</div>
               <ul class="pricing-features">
-                <li>✓ Everything in Monthly</li>
-                <li>✓ Never pay again</li>
-                <li>✓ Early access to features</li>
-                <li>✓ VIP support</li>
-                <li>✓ Lifetime updates</li>
+                <li><span class="check">✓</span> Everything in Monthly</li>
+                <li><span class="check">✓</span> Never pay again</li>
+                <li><span class="check">✓</span> Early access to features</li>
+                <li><span class="check">✓</span> VIP support</li>
+                <li><span class="check">✓</span> Lifetime updates</li>
               </ul>
               <button class="btn btn-secondary btn-block" onclick="openAuthModal('signup')">Get lifetime</button>
             </div>
@@ -300,7 +314,10 @@ function renderAuth() {
         <div class="section-inner">
           <div class="footer-grid">
             <div>
-              <div class="landing-logo" style="margin-bottom:12px">💰 Budget Tracker</div>
+              <div class="landing-logo" style="margin-bottom:12px">
+                <svg width="24" height="24" viewBox="0 0 28 28" fill="none" style="vertical-align:middle;margin-right:6px"><rect width="28" height="28" rx="8" fill="url(#lg2)"/><path d="M14 6v16M6 14h16" stroke="#fff" stroke-width="3" stroke-linecap="round"/><defs><linearGradient id="lg2" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#059669"/><stop offset="1" stop-color="#10B981"/></linearGradient></defs></svg>
+                Budget Tracker
+              </div>
               <p style="color:var(--text2);font-size:14px">The simplest way to track your money.</p>
             </div>
             <div>
@@ -335,6 +352,38 @@ function renderAuth() {
       </div>
     </div>
   `;
+
+  // Scroll reveal animation
+  setTimeout(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const delay = parseInt(entry.target.dataset.delay) || 0;
+          setTimeout(() => entry.target.classList.add('visible'), delay);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Counter animation
+    document.querySelectorAll('.counter').forEach(el => {
+      const target = parseInt(el.dataset.target);
+      const dur = 1500; const step = Math.max(1, Math.floor(target / 40));
+      let cur = 0;
+      const interval = setInterval(() => {
+        cur += step;
+        if (cur >= target) { cur = target; clearInterval(interval); }
+        el.textContent = cur + (target === 100 ? '%' : '');
+      }, dur / (target / step));
+    });
+
+    // Header scroll effect
+    const header = document.getElementById('landing-header');
+    window.addEventListener('scroll', () => {
+      header.classList.toggle('scrolled', window.scrollY > 50);
+    }, { passive: true });
+  }, 50);
 }
 
 let authMode = 'login';
