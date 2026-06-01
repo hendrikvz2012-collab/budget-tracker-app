@@ -2,16 +2,14 @@
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#059669"/>
-      <stop offset="100%" style="stop-color:#047857"/>
+      <stop offset="100%" style="stop-color:#10B981"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
   <g transform="translate(256,256)">
-    <!-- Dollar sign -->
-    <text text-anchor="middle" dominant-baseline="central" font-family="Arial,sans-serif" font-weight="bold" font-size="240" fill="white">$</text>
-    <!-- Chart line -->
-    <polyline points="-80,140 0,100 80,140" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-    <polyline points="-80,100 -20,40 60,80" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="60" cy="80" r="10" fill="white"/>
+    <polyline points="-120,200 -60,100 0,140 140,-40" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="-80,160 -20,60 40,100 120,-80" fill="none" stroke="white" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="120" cy="-80" r="50" fill="white"/>
+    <text x="120" y="-66" text-anchor="middle" fill="#059669" font-family="Inter,Arial,sans-serif" font-weight="800" font-size="64">$</text>
   </g>
 </svg>

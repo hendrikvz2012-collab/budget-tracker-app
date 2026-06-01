@@ -179,7 +179,7 @@ function renderAuth() {
       <header class="landing-header" id="landing-header">
         <div class="landing-header-inner">
           <div class="landing-logo">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="8" fill="url(#lg)"/><path d="M14 6v16M6 14h16" stroke="#fff" stroke-width="3" stroke-linecap="round"/><defs><linearGradient id="lg" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#059669"/><stop offset="1" stop-color="#10B981"/></linearGradient></defs></svg>
+            <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="url(#lg)"/><path d="M7 22l5-7 5 3 8-10" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="25" cy="8" r="4.5" fill="#fff"/><text x="25" y="10" text-anchor="middle" fill="#059669" font-size="7" font-weight="800" font-family="Inter,sans-serif">$</text><defs><linearGradient id="lg" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#059669"/><stop offset="1" stop-color="#10B981"/></linearGradient></defs></svg>
             Budget Tracker
           </div>
           <nav class="landing-nav">
@@ -315,7 +315,7 @@ function renderAuth() {
           <div class="footer-grid">
             <div>
               <div class="landing-logo" style="margin-bottom:12px">
-                <svg width="24" height="24" viewBox="0 0 28 28" fill="none" style="vertical-align:middle;margin-right:6px"><rect width="28" height="28" rx="8" fill="url(#lg2)"/><path d="M14 6v16M6 14h16" stroke="#fff" stroke-width="3" stroke-linecap="round"/><defs><linearGradient id="lg2" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#059669"/><stop offset="1" stop-color="#10B981"/></linearGradient></defs></svg>
+                <svg width="24" height="24" viewBox="0 0 32 32" fill="none" style="vertical-align:middle;margin-right:6px"><rect width="32" height="32" rx="8" fill="url(#lg2)"/><path d="M7 22l5-7 5 3 8-10" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="25" cy="8" r="4.5" fill="#fff"/><text x="25" y="10" text-anchor="middle" fill="#059669" font-size="7" font-weight="800" font-family="Inter,sans-serif">$</text><defs><linearGradient id="lg2" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#059669"/><stop offset="1" stop-color="#10B981"/></linearGradient></defs></svg>
                 Budget Tracker
               </div>
               <p style="color:var(--text2);font-size:14px">The simplest way to track your money.</p>
@@ -471,7 +471,7 @@ function renderApp() {
   document.getElementById('app').innerHTML = `
     <div class="app-layout">
       <aside class="sidebar" id="sidebar">
-        <div class="logo">💰 Budget</div>
+        <div class="logo"><svg width="22" height="22" viewBox="0 0 32 32" fill="none" style="vertical-align:middle;margin-right:6px"><rect width="32" height="32" rx="8" fill="url(#lg3)"/><path d="M7 22l5-7 5 3 8-10" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="25" cy="8" r="4.5" fill="#fff"/><text x="25" y="10" text-anchor="middle" fill="#059669" font-size="7" font-weight="800" font-family="Inter,sans-serif">$</text><defs><linearGradient id="lg3" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#059669"/><stop offset="1" stop-color="#10B981"/></linearGradient></defs></svg>Budget</div>
         <nav>
           <a data-view="dashboard" onclick="navigate('dashboard')" class="active">📊 Dashboard</a>
           <a data-view="transactions" onclick="navigate('transactions')">💳 Transactions</a>
