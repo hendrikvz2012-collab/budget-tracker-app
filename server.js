@@ -342,7 +342,7 @@ app.post('/api/payments/create-order', auth, async (req, res) => {
     if (req.user.id === 1) return res.status(400).json({ error: 'Owner does not need to pay' });
     const settings = dbAll('SELECT key, value FROM app_settings');
     const map = Object.fromEntries(settings.map(s => [s.key, s.value]));
-    const price = map.sub_price || '5';
+    const price = map.sub_price || '2.50';
     const currency = map.sub_currency || 'USD';
 
     const token = await ppToken();
@@ -397,7 +397,7 @@ app.get('/api/payments/config', auth, (req, res) => {
   const map = Object.fromEntries(settings.map(s => [s.key, s.value]));
   res.json({
     client_id: process.env.PAYPAL_CLIENT_ID,
-    price: map.sub_price || '5',
+    price: map.sub_price || '2.50',
     currency: map.sub_currency || 'USD',
     label: map.sub_label || 'Monthly',
     trial_days: map.trial_days || '7',
@@ -459,7 +459,7 @@ async function start() {
   db.run(`CREATE TABLE IF NOT EXISTS payouts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, amount REAL NOT NULL, currency TEXT DEFAULT 'ZAR', paypal_email TEXT NOT NULL, batch_id TEXT, status TEXT DEFAULT 'PENDING', note TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (user_id) REFERENCES users(id))`);
   db.run(`CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL UNIQUE, order_id TEXT, amount REAL, currency TEXT DEFAULT 'USD', status TEXT DEFAULT 'active', expires_at TEXT, created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (user_id) REFERENCES users(id))`);
   db.run(`CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)`);
-  db.run(`INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sub_price', '5')`);
+  db.run(`INSERT OR IGNORE INTO app_settings (key, value)     VALUES ('sub_price', '2.50')`);
   db.run(`INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sub_currency', 'USD')`);
   db.run(`INSERT OR IGNORE INTO app_settings (key, value) VALUES ('trial_days', '7')`);
   saveDb();
