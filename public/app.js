@@ -1,3 +1,35 @@
+// ── Global Error Reporter & Watchdog ─────────────────────────────────────
+let errorWatchdog = null;
+window.addEventListener('error', function (e) {
+  reportError('runtime', e.filename || 'unknown', e.message, e.error?.stack);
+});
+window.addEventListener('unhandledrejection', function (e) {
+  reportError('promise', 'unknown', e.reason?.message || String(e.reason), e.reason?.stack);
+});
+function reportError(type, source, message, stack, info) {
+  if (!state.token) return;
+  try {
+    fetch(API_BASE + '/api/ai/report-error', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+      body: JSON.stringify({ type, source, message: String(message).slice(0,500), stack: String(stack||'').slice(0,2000), url: location.href, info }),
+    });
+  } catch {}
+}
+function startWatchdog() {
+  if (errorWatchdog) clearInterval(errorWatchdog);
+  errorWatchdog = setInterval(async () => {
+    if (!state.token) return;
+    try {
+      const hc = await API.post('/api/ai/health-check');
+      if (hc.issues?.length) {
+        for (const issue of hc.issues) console.warn('[Watchdog]', issue);
+        if (hc.fixes?.length) for (const fix of hc.fixes) console.log('[Watchdog] Auto-fixed:', fix);
+      }
+    } catch {}
+  }, 60000);
+}
+window.addEventListener('beforeunload', () => { if (errorWatchdog) clearInterval(errorWatchdog); });
+
 // ── State ────────────────────────────────────────────────────────────────
 const state = {
   token: localStorage.getItem('bt_token') || sessionStorage.getItem('bt_token') || '',
@@ -1000,12 +1032,96 @@ async function renderSettings(el) {
         </div>
       </div>
 
+      <div class="settings-section" id="health-section">
+        <h3>🩺 Auto Health Check</h3>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Runs automatically every 60s. Detects and fixes common issues.</p>
+        <div id="health-status" style="margin-bottom:12px">
+          <span style="color:var(--text2)">Click "Run check" to scan for issues</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="runHealthCheck()">🔍 Run check</button>
+          <button class="btn btn-secondary btn-sm" onclick="clearAllErrors()">🗑 Clear error log</button>
+          <button class="btn btn-secondary btn-sm" onclick="fixStaleSubs()">🔧 Fix stale subs</button>
+        </div>
+        <div id="health-results" style="margin-top:12px;display:none"></div>
+      </div>
+
+      ${state.user?.id === 1 ? `
+      <div class="settings-section">
+        <h3>📋 Error Log (Owner)</h3>
+        <div id="error-log-view" style="font-size:13px;color:var(--text2)">Loading...</div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="viewErrorLog()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>🛠 Fix History (Owner)</h3>
+        <div id="fix-log-view" style="font-size:13px;color:var(--text2)">Loading...</div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="viewFixLog()">🔄 Refresh</button>
+        </div>
+      </div>
+      ` : ''}
+
       <div class="settings-section">
         <h3>Account</h3>
         <button class="btn btn-danger btn-sm" onclick="if(confirm('Log out?'))logout()">Log out</button>
       </div>
     `;
+    if (state.user?.id === 1) { viewErrorLog(); viewFixLog(); }
+    startWatchdog();
   } catch (err) { el.innerHTML = `<div style="color:var(--red);padding:20px">${escHtml(err.message)}</div>`; }
+}
+
+async function runHealthCheck() {
+  const status = document.getElementById('health-status');
+  const results = document.getElementById('health-results');
+  results.style.display = 'block';
+  results.innerHTML = '<div style="color:var(--text2)">Scanning...</div>';
+  try {
+    const hc = await API.post('/api/ai/health-check');
+    let html = '';
+    if (hc.healthy) {
+      html = '<div style="color:var(--green);font-weight:600">✓ All systems healthy</div>';
+    } else {
+      if (hc.issues?.length) html += '<div style="color:var(--red);font-weight:600;margin-bottom:6px">Issues found:</div><ul style="margin:0 0 8px 16px;color:var(--red)">' + hc.issues.map(i => '<li>' + escHtml(i) + '</li>').join('') + '</ul>';
+    }
+    if (hc.fixes?.length) html += '<div style="color:var(--green);font-weight:600;margin-top:8px">Auto-fixed:</div><ul style="margin:4px 0 0 16px;color:var(--green)">' + hc.fixes.map(f => '<li>' + escHtml(f) + '</li>').join('') + '</ul>';
+    results.innerHTML = html;
+    status.innerHTML = '<span style="color:var(--green)">✓ Last check: ' + new Date().toLocaleTimeString() + '</span>';
+  } catch (err) {
+    results.innerHTML = '<div style="color:var(--red)">Check failed: ' + escHtml(err.message) + '</div>';
+  }
+}
+
+async function clearAllErrors() {
+  if (!confirm('Clear all error logs?')) return;
+  await API.post('/api/ai/auto-fix', { action: 'clear-error-log' });
+  viewErrorLog();
+}
+
+async function fixStaleSubs() {
+  const res = await API.post('/api/ai/auto-fix', { action: 'fix-stale-subs' });
+  alert('Done: ' + res.results.join(', '));
+}
+
+async function viewErrorLog() {
+  const el = document.getElementById('error-log-view');
+  try {
+    const errors = await API.get('/api/ai/error-log');
+    if (!errors.length) { el.innerHTML = '<span style="color:var(--text2)">No errors logged</span>'; return; }
+    el.innerHTML = errors.slice(0, 20).map(e => '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text3)">' + e.created_at?.slice(0,16) + '</span> <span style="color:' + (e.type === 'runtime' || e.type === 'promise' ? 'var(--red)' : 'var(--amber)') + '">[' + e.type + ']</span> ' + escHtml((e.message || '').slice(0, 100)) + '</div>').join('');
+    el.innerHTML += '<div style="font-size:11px;color:var(--text3);padding-top:4px">Showing last 20 of ' + errors.length + '</div>';
+  } catch (err) { el.innerHTML = '<span style="color:var(--red)">Failed to load: ' + escHtml(err.message) + '</span>'; }
+}
+
+async function viewFixLog() {
+  const el = document.getElementById('fix-log-view');
+  try {
+    const fixes = await API.get('/api/ai/fix-log');
+    if (!fixes.length) { el.innerHTML = '<span style="color:var(--text2)">No fixes recorded</span>'; return; }
+    el.innerHTML = fixes.map(f => '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text3)">' + f.created_at?.slice(0,16) + '</span> <span style="color:var(--green)">' + escHtml(f.action) + '</span> → ' + escHtml((f.result || '').slice(0, 120)) + '</div>').join('');
+  } catch (err) { el.innerHTML = '<span style="color:var(--red)">Failed to load: ' + escHtml(err.message) + '</span>'; }
 }
 
 // ── Render: Paywall ─────────────────────────────────────────────────────

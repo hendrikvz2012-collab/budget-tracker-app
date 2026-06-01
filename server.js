@@ -1,7 +1,7 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -578,6 +578,189 @@ RULES:
   }
 });
 
+// ── Auto Bug Detection & Fix ────────────────────────────────────────────
+
+function initErrorLog() {
+  db.run(`CREATE TABLE IF NOT EXISTS error_log (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, source TEXT, message TEXT, stack TEXT, url TEXT, info TEXT, fixed INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')))`);
+  db.run(`CREATE TABLE IF NOT EXISTS auto_fixes (id INTEGER PRIMARY KEY AUTOINCREMENT, issue TEXT, action TEXT, result TEXT, user_id INTEGER, created_at TEXT DEFAULT (datetime('now')))`);
+  saveDb();
+}
+
+// Client-side error reporter — catches JS errors automatically
+app.post('/api/ai/report-error', auth, (req, res) => {
+  const { type, source, message, stack, url, info } = req.body;
+  db.run(`INSERT INTO error_log (user_id,type,source,message,stack,url,info) VALUES (?,?,?,?,?,?,?)`,
+    [req.userId, type || 'client', source || 'unknown', message, stack, url, info ? JSON.stringify(info) : null]);
+  saveDb();
+  res.json({ ok: true });
+});
+
+// Run health diagnostics and auto-fix common issues
+app.post('/api/ai/health-check', auth, async (req, res) => {
+  try {
+    const issues = [];
+    const fixes = [];
+
+    // 1. Check all required tables exist
+    const requiredTables = ['users', 'categories', 'transactions', 'payouts', 'subscriptions', 'app_settings', 'error_log', 'auto_fixes'];
+    const rows = db.exec(`SELECT name FROM sqlite_master WHERE type='table'`);
+    const existing = rows.length ? rows[0].values.map(r => r[0]) : [];
+    for (const t of requiredTables) {
+      if (!existing.includes(t)) {
+        issues.push('Missing table: ' + t);
+        const sql = t === 'users' ? "CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL, paypal_email TEXT DEFAULT '', currency TEXT DEFAULT 'ZAR', theme TEXT DEFAULT 'auto', created_at TEXT DEFAULT (datetime('now')))" :
+                     t === 'categories' ? "CREATE TABLE categories (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, name TEXT NOT NULL, icon TEXT DEFAULT '📦', color TEXT DEFAULT '#6B7280', budget REAL DEFAULT 0, type TEXT DEFAULT 'expense', FOREIGN KEY (user_id) REFERENCES users(id))" :
+                     t === 'transactions' ? "CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, amount REAL NOT NULL, type TEXT NOT NULL CHECK(type IN ('income','expense')), category_id INTEGER, description TEXT NOT NULL, date TEXT NOT NULL, note TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (category_id) REFERENCES categories(id))" :
+                     t === 'payouts' ? "CREATE TABLE payouts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, amount REAL NOT NULL, currency TEXT DEFAULT 'ZAR', paypal_email TEXT NOT NULL, batch_id TEXT, status TEXT DEFAULT 'PENDING', note TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (user_id) REFERENCES users(id))" :
+                     t === 'subscriptions' ? "CREATE TABLE subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL UNIQUE, order_id TEXT, amount REAL, currency TEXT DEFAULT 'USD', status TEXT DEFAULT 'active', expires_at TEXT, created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (user_id) REFERENCES users(id))" :
+                     t === 'app_settings' ? 'CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT)' :
+                     t === 'error_log' ? "CREATE TABLE error_log (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, source TEXT, message TEXT, stack TEXT, url TEXT, info TEXT, fixed INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')))" :
+                     "CREATE TABLE auto_fixes (id INTEGER PRIMARY KEY AUTOINCREMENT, issue TEXT, action TEXT, result TEXT, user_id INTEGER, created_at TEXT DEFAULT (datetime('now')))";
+        try { db.run(sql); saveDb(); fixes.push('Recreated table: ' + t); } catch (e) { fixes.push('Failed recreate ' + t + ': ' + e.message); }
+      }
+    }
+
+    // 2. Check required app_settings exist
+    const settingRows = db.exec('SELECT key FROM app_settings');
+    const existingSettings = settingRows.length ? settingRows[0].values.map(r => r[0]) : [];
+    const requiredSettings = { sub_price: '2.50', sub_currency: 'USD', trial_days: '7' };
+    for (const [k, v] of Object.entries(requiredSettings)) {
+      if (!existingSettings.includes(k)) {
+        issues.push('Missing app_setting: ' + k);
+        try { db.run('INSERT INTO app_settings (key,value) VALUES (?,?)', [k, v]); saveDb(); fixes.push('Restored setting: ' + k + '=' + v); } catch (e) { fixes.push('Failed restore ' + k + ': ' + e.message); }
+      }
+    }
+
+    // 3. Check for users with missing names
+    const badRows = db.exec("SELECT id,email FROM users WHERE name IS NULL OR name = ''");
+    if (badRows.length) {
+      for (const row of badRows[0].values) {
+        const uid = row[0]; const uemail = row[1];
+        issues.push('User ' + uid + ' (' + uemail + ') has missing name');
+        try { db.run('UPDATE users SET name=? WHERE id=?', ['User ' + uid, uid]); saveDb(); fixes.push('Fixed name for user ' + uid); } catch (e) { fixes.push('Failed fix user ' + uid + ': ' + e.message); }
+      }
+    }
+
+    // 4. Check for stuck subscriptions
+    const stuckRows = db.exec("SELECT id,user_id,expires_at FROM subscriptions WHERE status='active' AND expires_at IS NOT NULL AND expires_at < datetime('now')");
+    if (stuckRows.length) {
+      for (const row of stuckRows[0].values) {
+        const sid = row[0]; const suid = row[1]; const sexp = row[2];
+        issues.push('Subscription ' + sid + ' for user ' + suid + ' expired ' + sexp + ' but still active');
+        try { db.run("UPDATE subscriptions SET status='expired' WHERE id=?", [sid]); saveDb(); fixes.push('Expired subscription ' + sid); } catch (e) { fixes.push('Failed expire sub ' + sid + ': ' + e.message); }
+      }
+    }
+
+    // 5. DB integrity check
+    try {
+      const integ = db.exec('PRAGMA integrity_check');
+      if (integ.length && integ[0].values.length && integ[0].values[0][0] !== 'ok') {
+        issues.push('DB integrity: ' + integ[0].values[0][0]);
+      }
+    } catch (e) { issues.push('Integrity check: ' + e.message); }
+
+    // 6. Orphaned records
+    try {
+      const otx = db.exec('SELECT COUNT(*) as c FROM transactions WHERE user_id NOT IN (SELECT id FROM users)');
+      if (otx.length && otx[0].values.length && otx[0].values[0][0] > 0) {
+        const n = otx[0].values[0][0];
+        issues.push(n + ' orphaned transaction(s)');
+        db.run('DELETE FROM transactions WHERE user_id NOT IN (SELECT id FROM users)'); saveDb();
+        fixes.push('Deleted ' + n + ' orphaned transactions');
+      }
+      const ocat = db.exec('SELECT COUNT(*) as c FROM categories WHERE user_id NOT IN (SELECT id FROM users)');
+      if (ocat.length && ocat[0].values.length && ocat[0].values[0][0] > 0) {
+        const n = ocat[0].values[0][0];
+        issues.push(n + ' orphaned categor(ies)');
+        db.run('DELETE FROM categories WHERE user_id NOT IN (SELECT id FROM users)'); saveDb();
+        fixes.push('Deleted ' + n + ' orphaned categories');
+      }
+    } catch (e) { /* skip */ }
+
+    // Log fixes
+    for (const fix of fixes) {
+      db.run('INSERT INTO auto_fixes (issue,action,result,user_id) VALUES (?,?,?,?)', ['auto-detected', 'health-check', fix, req.userId]);
+    }
+    saveDb();
+    res.json({ issues, fixes, healthy: issues.length === 0, dbOk: true });
+  } catch (err) {
+    const msg = (err && err.message) ? err.message : (typeof err === 'string' ? err : JSON.stringify(err));
+    console.error('Health check error:', msg);
+    res.json({ issues: ['Health check error: ' + msg], fixes: [], healthy: false, dbOk: false });
+  }
+});
+
+// Trigger a specific auto-fix
+app.post('/api/ai/auto-fix', auth, async (req, res) => {
+  try {
+    const { action } = req.body;
+    const userRows = db.exec("SELECT id FROM users WHERE id=" + req.userId);
+    if (!userRows.length || !userRows[0].values.length) return res.status(404).json({ error: 'User not found' });
+    const results = [];
+
+    if (action === 'recalculate-balance') {
+      const allUsers = db.exec('SELECT id FROM users');
+      if (allUsers.length) {
+        for (const row of allUsers[0].values) {
+          const uid = row[0];
+          const balRows = db.exec("SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END),0) - COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),0) as bal FROM transactions WHERE user_id=" + uid);
+          const bal = balRows.length && balRows[0].values.length ? balRows[0].values[0][0] : 0;
+          results.push('User ' + uid + ' balance: ' + Number(bal).toFixed(2));
+        }
+      }
+    } else if (action === 'clear-error-log') {
+    db.run('DELETE FROM error_log'); saveDb();
+    results.push('Error log cleared');
+  } else if (action === 'fix-stale-subs') {
+    db.run("UPDATE subscriptions SET status='expired' WHERE status='active' AND expires_at IS NOT NULL AND expires_at < datetime('now')");
+    saveDb();
+    results.push('Stale subscriptions expired');
+  } else if (action === 'reset-all-subs') {
+    db.run("UPDATE subscriptions SET status='expired'"); saveDb();
+    results.push('All subscriptions reset to expired');
+  } else if (action === 'clear-data') {
+    db.run('DELETE FROM transactions'); db.run('DELETE FROM categories'); db.run('DELETE FROM payouts'); db.run("UPDATE subscriptions SET status='expired'"); saveDb();
+    results.push('All user data cleared (transactions, categories, payouts, subscriptions)');
+  } else {
+    return res.status(400).json({ error: 'Unknown action. Available: recalculate-balance, clear-error-log, fix-stale-subs, reset-all-subs, clear-data' });
+  }
+
+  db.run('INSERT INTO auto_fixes (issue,action,result,user_id) VALUES (?,?,?,?)', ['manual', action, results.join('; '), req.userId]);
+  saveDb();
+  res.json({ results });
+  } catch (err) { res.json({ results: ['Error: ' + err.message] }); }
+});
+
+// View error log (owner only)
+app.get('/api/ai/error-log', auth, (req, res) => {
+  try {
+    if (req.userId !== 1) return res.status(403).json({ error: 'Owner only' });
+    const rows = db.exec('SELECT * FROM error_log ORDER BY created_at DESC LIMIT 100');
+    const errors = rows.length ? rows[0].values.map(r => {
+      const cols = rows[0].columns;
+      const obj = {};
+      for (let i = 0; i < cols.length; i++) obj[cols[i]] = r[i];
+      return obj;
+    }) : [];
+    res.json(errors);
+  } catch (e) { res.json([]); }
+});
+
+// View auto-fix log (owner only)
+app.get('/api/ai/fix-log', auth, (req, res) => {
+  try {
+    if (req.userId !== 1) return res.status(403).json({ error: 'Owner only' });
+    const rows = db.exec('SELECT * FROM auto_fixes ORDER BY created_at DESC LIMIT 50');
+    const fixes = rows.length ? rows[0].values.map(r => {
+      const cols = rows[0].columns;
+      const obj = {};
+      for (let i = 0; i < cols.length; i++) obj[cols[i]] = r[i];
+      return obj;
+    }) : [];
+    res.json(fixes);
+  } catch (e) { res.json([]); }
+});
+
 // ── Serve SPA ──────────────────────────────────────────────────────────
 
 app.get('*', (req, res) => {
@@ -606,6 +789,7 @@ async function start() {
   db.run(`INSERT OR IGNORE INTO app_settings (key, value)     VALUES ('sub_price', '2.50')`);
   db.run(`INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sub_currency', 'USD')`);
   db.run(`INSERT OR IGNORE INTO app_settings (key, value) VALUES ('trial_days', '7')`);
+  initErrorLog();
   saveDb();
 
   const PORT = process.env.PORT || 3001;
